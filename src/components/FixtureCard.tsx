@@ -16,8 +16,12 @@ export default function FixtureCard({ fixture }: FixtureCardProps) {
             {fixture.sport}
           </div>
         </div>
-        <div className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded">
-          {fixture.channel}
+        <div className={`text-xs px-2 py-1 rounded ${
+          fixture.channel === 'No TV Coverage' 
+            ? 'text-gray-400 bg-gray-100' 
+            : 'text-gray-500 bg-gray-50'
+        }`}>
+          {fixture.channel === 'No TV Coverage' ? 'No TV' : fixture.channel}
         </div>
       </div>
       
@@ -32,18 +36,12 @@ export default function FixtureCard({ fixture }: FixtureCardProps) {
         )}
       </div>
       
-      {(fixture.venue || fixture.referee) && (
+      {(fixture.venue) && (
         <div className="text-xs text-gray-500 space-y-1">
           {fixture.venue && (
             <div className="flex items-center">
               <span className="font-medium mr-1">Venue:</span>
               <span>{fixture.venue}</span>
-            </div>
-          )}
-          {fixture.referee && (
-            <div className="flex items-center">
-              <span className="font-medium mr-1">Referee:</span>
-              <span>{fixture.referee}</span>
             </div>
           )}
         </div>

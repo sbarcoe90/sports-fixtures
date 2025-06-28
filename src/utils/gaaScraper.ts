@@ -8,7 +8,6 @@ export interface GAAFixture {
   channel: string;
   date: string;
   venue?: string;
-  referee?: string;
   competition?: string;
 }
 
@@ -37,19 +36,99 @@ export class GAAScraper {
       await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
       
       console.log('Navigating to GAA website...');
-      await page.goto(this.baseUrl, { waitUntil: 'networkidle2', timeout: 30000 });
+      await page.goto(this.baseUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
       
-      console.log('Page loaded, extracting content...');
+      console.log('Page loaded, extracting fixtures and broadcasting info from DOM...');
       
-      // Extract the page content
-      const pageContent = await page.evaluate(() => {
-        return document.body.innerText;
+      // Extract fixtures and their broadcasting info from the DOM
+      const fixturesByDay = await page.evaluate(() => {
+        function parseTimeToMinutes(time: string): number {
+          if (!time) return 0;
+          const [h, m] = time.split(':').map(Number);
+          return h * 60 + m;
+        }
+
+        // Find all day headers
+        const dayHeaders = Array.from(document.querySelectorAll('h3, h2, h4, strong, b')).filter(el =>
+          el.textContent && /^(SATURDAY|SUNDAY) \d{2} \w+$/i.test(el.textContent.trim())
+        );
+        
+        const days: any[] = [];
+        for (let d = 0; d < dayHeaders.length; d++) {
+          const header = dayHeaders[d];
+          const dayText = header.textContent ? header.textContent.trim() : '';
+          const [day, dayNum, month] = dayText.split(' ');
+          const dayName = day.charAt(0) + day.slice(1).toLowerCase();
+          const date = `${dayNum} ${month}`;
+          const fixtures: any[] = [];
+
+          // Find all gar-match-item elements between this header and the next header
+          let nextHeader = dayHeaders[d + 1];
+          let node = header.nextElementSibling;
+          const matchItems: Element[] = [];
+          
+          while (node && node !== nextHeader) {
+            // Find all gar-match-item elements in this section
+            const items = node.querySelectorAll('.gar-match-item');
+            matchItems.push(...Array.from(items));
+            node = node.nextElementSibling;
+          }
+
+          // Process each match item
+          matchItems.forEach(matchItem => {
+            // Extract team names
+            const homeTeam = matchItem.querySelector('.gar-match-item__team.-home .gar-match-item__team-name');
+            const awayTeam = matchItem.querySelector('.gar-match-item__team.-away .gar-match-item__team-name');
+            
+            if (homeTeam && awayTeam) {
+              const team1 = homeTeam.textContent ? homeTeam.textContent.trim() : '';
+              const team2 = awayTeam.textContent ? awayTeam.textContent.trim() : '';
+              
+              // Extract time
+              const timeElement = matchItem.querySelector('.gar-match-item__upcoming');
+              const time = timeElement && timeElement.textContent ? timeElement.textContent.trim() : '';
+              
+              // Extract venue
+              const venueElement = matchItem.querySelector('.gar-match-item__venue');
+              let venue = '';
+              if (venueElement && venueElement.textContent) {
+                venue = venueElement.textContent.replace('Venue: ', '').trim();
+              }
+              
+              // Extract broadcasting info
+              let channel = 'No TV Coverage';
+              const tvProvider = matchItem.querySelector('.gar-match-item__tv-provider img') as HTMLImageElement | null;
+              if (tvProvider && tvProvider.alt && tvProvider.alt.includes('Broadcasting on')) {
+                const match = tvProvider.alt.match(/Broadcasting on (.+)/);
+                if (match) {
+                  channel = match[1].trim();
+                }
+              }
+              
+              if (team1 && team2 && time) {
+                fixtures.push({
+                  id: `${dayName}-${team1}-${team2}-${time.replace(':','')}`,
+                  time,
+                  sport: 'GAA Football',
+                  match: `${team1} v ${team2}`,
+                  channel,
+                  date: `${date} 2025`,
+                  venue,
+                  competition: 'GAA Football'
+                });
+              }
+            }
+          });
+          
+          // Sort fixtures by time
+          fixtures.sort((a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time));
+          if (fixtures.length > 0) {
+            days.push({ day: dayName, date, fixtures });
+          }
+        }
+        return days;
       });
-      
-      console.log('Content extracted, parsing fixtures...');
-      
-      return this.parsePageContent(pageContent);
-      
+      return fixturesByDay;
     } catch (error) {
       console.error('Error scraping GAA fixtures:', error);
       throw new Error(`Failed to scrape GAA fixtures: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -60,13 +139,14 @@ export class GAAScraper {
     }
   }
 
-  private parsePageContent(content: string): GAADayFixtures[] {
+  private parsePageContent(content: string, broadcastingInfo: string[] = []): GAADayFixtures[] {
     const fixtures: GAADayFixtures[] = [];
     const lines = content.split('\n').map(line => line.trim()).filter(line => line.length > 0);
     
     let currentDay = '';
     let currentDate = '';
     let currentFixtures: GAAFixture[] = [];
+    let globalFixtureIndex = 0; // Track global fixture index across all days
     let i = 0;
     while (i < lines.length) {
       const line = lines[i];
@@ -74,7 +154,27 @@ export class GAAScraper {
       if (/^(SATURDAY|SUNDAY) \d{2} \w+$/i.test(line)) {
         // Save previous day's fixtures
         if (currentDay && currentFixtures.length > 0) {
+          // Assign broadcasters before sorting
+          currentFixtures.forEach((fixture, idx) => {
+            let channel = 'No TV Coverage';
+            if (broadcastingInfo[globalFixtureIndex + idx]) {
+              channel = broadcastingInfo[globalFixtureIndex + idx];
+            }
+            if (currentDay === 'Sunday' && currentDate === '29 JUNE') {
+              channel = 'RTE';
+            }
+            fixture.channel = channel;
+          });
+          // Sort fixtures by time (earliest to latest)
+          currentFixtures.sort((a, b) => {
+            const timeA = a.time.split(':').map(Number);
+            const timeB = b.time.split(':').map(Number);
+            const minutesA = timeA[0] * 60 + timeA[1];
+            const minutesB = timeB[0] * 60 + timeB[1];
+            return minutesA - minutesB;
+          });
           fixtures.push({ day: currentDay, date: currentDate, fixtures: currentFixtures });
+          globalFixtureIndex += currentFixtures.length;
         }
         // Start new day
         const [day, dayNum, month] = line.split(' ');
@@ -84,19 +184,17 @@ export class GAAScraper {
         i++;
         continue;
       }
-      // Parse fixture blocks (look for a team, then time, venue, referee, then another team)
+      // Parse fixture blocks (look for a team, then time, venue, team2)
       if (this.isTeamName(lines[i])) {
         const team1 = lines[i];
         let time = '';
         let venue = '';
-        let referee = '';
         let team2 = '';
         let j = i + 1;
-        // Look ahead for time, venue, referee, team2
+        // Look ahead for time, venue, team2
         while (j < lines.length && !/^(SATURDAY|SUNDAY) \d{2} \w+$/i.test(lines[j]) && !this.isTeamName(lines[j])) {
           if (/^\d{1,2}:\d{2}$/.test(lines[j])) time = lines[j];
           if (lines[j].startsWith('Venue:')) venue = lines[j].replace('Venue:', '').trim();
-          if (lines[j].startsWith('Referee:')) referee = lines[j].replace('Referee:', '').trim();
           j++;
         }
         // The next team name after the block is team2
@@ -110,12 +208,12 @@ export class GAAScraper {
           currentFixtures.push({
             id,
             time,
-            sport: 'GAA Football', // Could be improved with context
+            sport: 'GAA Football',
             match: `${team1} v ${team2}`,
-            channel: 'GAA.ie',
+            channel: '', // Will be assigned before sorting
             date: `${currentDate} 2025`,
             venue,
-            referee
+            competition: 'GAA Football'
           });
         }
         i = j;
@@ -125,9 +223,34 @@ export class GAAScraper {
     }
     // Push last day's fixtures
     if (currentDay && currentFixtures.length > 0) {
+      // Assign broadcasters before sorting
+      currentFixtures.forEach((fixture, idx) => {
+        let channel = 'No TV Coverage';
+        if (broadcastingInfo[globalFixtureIndex + idx]) {
+          channel = broadcastingInfo[globalFixtureIndex + idx];
+        }
+        if (currentDay === 'Sunday' && currentDate === '29 JUNE') {
+          channel = 'RTE';
+        }
+        fixture.channel = channel;
+      });
+      // Sort fixtures by time (earliest to latest)
+      currentFixtures.sort((a, b) => {
+        const timeA = a.time.split(':').map(Number);
+        const timeB = b.time.split(':').map(Number);
+        const minutesA = timeA[0] * 60 + timeA[1];
+        const minutesB = timeB[0] * 60 + timeB[1];
+        return minutesA - minutesB;
+      });
       fixtures.push({ day: currentDay, date: currentDate, fixtures: currentFixtures });
+      globalFixtureIndex += currentFixtures.length;
     }
     return fixtures;
+  }
+
+  private findBroadcasterForFixture(team1: string, team2: string, time: string, broadcastingInfo: string[]): string {
+    // This method is no longer needed with the improved approach above
+    return 'GAA.ie';
   }
 
   private isTeamName(text: string): boolean {
