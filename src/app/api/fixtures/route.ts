@@ -1,14 +1,24 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { GAAScraper } from '@/utils/gaaScraper';
+import { NextResponse } from 'next/server';
+import { FixtureScraperCoordinator } from '@/scrapers/coordinator';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const scraper = new GAAScraper();
-    const fixtures = await scraper.scrapeFixtures();
+    const coordinator = new FixtureScraperCoordinator();
+    const results = await coordinator.scrapeAllFixtures();
+    
+    // Combine all fixtures from all sports
+    const allFixtures = results
+      .filter(result => result.success)
+      .flatMap(result => result.fixtures);
     
     return NextResponse.json({
       success: true,
-      data: fixtures,
+      data: allFixtures,
+      sports: results.map(r => ({
+        sport: r.sport,
+        success: r.success,
+        fixtureCount: r.fixtures.reduce((sum, day) => sum + day.fixtures.length, 0)
+      })),
       timestamp: new Date().toISOString()
     });
     
@@ -24,4 +34,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

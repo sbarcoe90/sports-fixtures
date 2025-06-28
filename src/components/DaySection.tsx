@@ -1,8 +1,8 @@
-import { GAADayFixtures } from '@/utils/gaaScraper';
+import { DayFixtures } from '@/types/sports';
 import FixtureCard from './FixtureCard';
 
 interface DaySectionProps {
-  dayFixtures: GAADayFixtures;
+  dayFixtures: DayFixtures;
 }
 
 export default function DaySection({ dayFixtures }: DaySectionProps) {

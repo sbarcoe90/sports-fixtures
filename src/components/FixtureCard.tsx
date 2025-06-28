@@ -1,7 +1,7 @@
-import { GAAFixture } from '@/utils/gaaScraper';
+import { Fixture } from '@/types/sports';
 
 interface FixtureCardProps {
-  fixture: GAAFixture;
+  fixture: Fixture;
 }
 
 export default function FixtureCard({ fixture }: FixtureCardProps) {

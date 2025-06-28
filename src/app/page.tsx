@@ -45,7 +45,7 @@ export default function Home() {
             GAA Weekend Fixtures
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Your complete guide to this weekend's GAA matches from the official GAA website
+            Your complete guide to this weekend&apos;s GAA matches from the official GAA website
           </p>
           <div className="mt-4">
             <button
