@@ -48,84 +48,98 @@ export class GAAScraper {
           return h * 60 + m;
         }
 
-        // Find all day headers
-        const dayHeaders = Array.from(document.querySelectorAll('h3, h2, h4, strong, b')).filter(el =>
-          el.textContent && /^(SATURDAY|SUNDAY) \d{2} \w+$/i.test(el.textContent.trim())
-        );
+        // Find all gar-match-item elements on the page
+        const allMatchItems = document.querySelectorAll('.gar-match-item');
+        console.log(`Found ${allMatchItems.length} total gar-match-item elements`);
         
-        const days: any[] = [];
-        for (let d = 0; d < dayHeaders.length; d++) {
-          const header = dayHeaders[d];
-          const dayText = header.textContent ? header.textContent.trim() : '';
-          const [day, dayNum, month] = dayText.split(' ');
-          const dayName = day.charAt(0) + day.slice(1).toLowerCase();
-          const date = `${dayNum} ${month}`;
-          const fixtures: any[] = [];
-
-          // Find all gar-match-item elements between this header and the next header
-          let nextHeader = dayHeaders[d + 1];
-          let node = header.nextElementSibling;
-          const matchItems: Element[] = [];
+        // Group matches by date using the data-match-date attribute
+        const matchesByDate = new Map();
+        
+        allMatchItems.forEach(matchItem => {
+          // Log match ID for debugging
+          const matchId = matchItem.getAttribute('data-match-id');
+          console.log(`Processing match item with ID: ${matchId}`);
           
-          while (node && node !== nextHeader) {
-            // Find all gar-match-item elements in this section
-            const items = node.querySelectorAll('.gar-match-item');
-            matchItems.push(...Array.from(items));
-            node = node.nextElementSibling;
-          }
-
-          // Process each match item
-          matchItems.forEach(matchItem => {
-            // Extract team names
-            const homeTeam = matchItem.querySelector('.gar-match-item__team.-home .gar-match-item__team-name');
-            const awayTeam = matchItem.querySelector('.gar-match-item__team.-away .gar-match-item__team-name');
+          // Extract team names
+          const homeTeam = matchItem.querySelector('.gar-match-item__team.-home .gar-match-item__team-name');
+          const awayTeam = matchItem.querySelector('.gar-match-item__team.-away .gar-match-item__team-name');
+          
+          if (homeTeam && awayTeam) {
+            const team1 = homeTeam.textContent ? homeTeam.textContent.trim() : '';
+            const team2 = awayTeam.textContent ? awayTeam.textContent.trim() : '';
             
-            if (homeTeam && awayTeam) {
-              const team1 = homeTeam.textContent ? homeTeam.textContent.trim() : '';
-              const team2 = awayTeam.textContent ? awayTeam.textContent.trim() : '';
-              
-              // Extract time
-              const timeElement = matchItem.querySelector('.gar-match-item__upcoming');
-              const time = timeElement && timeElement.textContent ? timeElement.textContent.trim() : '';
-              
-              // Extract venue
-              const venueElement = matchItem.querySelector('.gar-match-item__venue');
-              let venue = '';
-              if (venueElement && venueElement.textContent) {
-                venue = venueElement.textContent.replace('Venue: ', '').trim();
+            // Extract time
+            const timeElement = matchItem.querySelector('.gar-match-item__upcoming');
+            const time = timeElement && timeElement.textContent ? timeElement.textContent.trim() : '';
+            
+            // Extract venue
+            const venueElement = matchItem.querySelector('.gar-match-item__venue');
+            let venue = '';
+            if (venueElement && venueElement.textContent) {
+              venue = venueElement.textContent.replace('Venue: ', '').trim();
+            }
+            
+            // Extract broadcasting info
+            let channel = 'No TV Coverage';
+            const tvProvider = matchItem.querySelector('.gar-match-item__tv-provider img') as HTMLImageElement | null;
+            if (tvProvider && tvProvider.alt && tvProvider.alt.includes('Broadcasting on')) {
+              const match = tvProvider.alt.match(/Broadcasting on (.+)/);
+              if (match) {
+                channel = match[1].trim();
               }
+            }
+            
+            console.log(`Processing match: ${team1} v ${team2} at ${time} - ${channel}`);
+            
+            if (team1 && team2 && time) {
+              // Get the date from data-match-date attribute
+              const matchDate = matchItem.getAttribute('data-match-date');
+              console.log(`Match date attribute: ${matchDate}`);
               
-              // Extract broadcasting info
-              let channel = 'No TV Coverage';
-              const tvProvider = matchItem.querySelector('.gar-match-item__tv-provider img') as HTMLImageElement | null;
-              if (tvProvider && tvProvider.alt && tvProvider.alt.includes('Broadcasting on')) {
-                const match = tvProvider.alt.match(/Broadcasting on (.+)/);
-                if (match) {
-                  channel = match[1].trim();
+              if (matchDate) {
+                const date = new Date(matchDate);
+                const dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+                const dateStr = date.toLocaleDateString('en-US', { day: 'numeric', month: 'long' }).toUpperCase();
+                
+                console.log(`Parsed date: ${dateStr}, day: ${dayName}`);
+                
+                if (!matchesByDate.has(dateStr)) {
+                  matchesByDate.set(dateStr, {
+                    day: dayName.charAt(0).toUpperCase() + dayName.slice(1),
+                    date: dateStr,
+                    fixtures: []
+                  });
                 }
-              }
-              
-              if (team1 && team2 && time) {
-                fixtures.push({
-                  id: `${dayName}-${team1}-${team2}-${time.replace(':','')}`,
+                
+                matchesByDate.get(dateStr).fixtures.push({
+                  id: `${dayName.charAt(0).toUpperCase() + dayName.slice(1)}-${team1}-${team2}-${time.replace(':','')}`,
                   time,
                   sport: 'GAA Football',
                   match: `${team1} v ${team2}`,
                   channel,
-                  date: `${date} 2025`,
+                  date: `${dateStr} 2025`,
                   venue,
                   competition: 'GAA Football'
                 });
+                
+                console.log(`Added match to ${dateStr}: ${team1} v ${team2}`);
+              } else {
+                console.log(`No match date found for ${team1} v ${team2}`);
               }
+            } else {
+              console.log(`Missing required data for match: team1=${team1}, team2=${team2}, time=${time}`);
             }
-          });
-          
-          // Sort fixtures by time
-          fixtures.sort((a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time));
-          if (fixtures.length > 0) {
-            days.push({ day: dayName, date, fixtures });
+          } else {
+            console.log('Missing team elements in match item');
           }
-        }
+        });
+        
+        // Convert to array and sort fixtures by time
+        const days = Array.from(matchesByDate.values());
+        days.forEach(day => {
+          day.fixtures.sort((a: any, b: any) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time));
+        });
+        
         return days;
       });
       return fixturesByDay;
