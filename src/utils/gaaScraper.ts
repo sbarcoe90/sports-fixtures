@@ -39,34 +39,16 @@ export class GAAScraper {
       console.log('Navigating to GAA website...');
       await page.goto(this.baseUrl, { waitUntil: 'networkidle2', timeout: 30000 });
       
-      console.log('Page loaded, extracting content and broadcasting info...');
+      console.log('Page loaded, extracting content...');
       
-      // Extract both text content and broadcasting information
-      const pageData = await page.evaluate(() => {
-        const textContent = document.body.innerText;
-        
-        // Extract broadcasting information from image alt attributes
-        const broadcastingInfo: string[] = [];
-        const images = document.querySelectorAll('img[alt*="Broadcasting"]');
-        
-        images.forEach((img) => {
-          const alt = img.getAttribute('alt') || '';
-          if (alt.includes('Broadcasting on')) {
-            // Extract the broadcaster name from alt text
-            const match = alt.match(/Broadcasting on (.+)/);
-            if (match) {
-              const broadcaster = match[1].trim();
-              broadcastingInfo.push(broadcaster);
-            }
-          }
-        });
-        
-        return { textContent, broadcastingInfo };
+      // Extract the page content
+      const pageContent = await page.evaluate(() => {
+        return document.body.innerText;
       });
       
-      console.log('Content and broadcasting info extracted, parsing fixtures...');
+      console.log('Content extracted, parsing fixtures...');
       
-      return this.parsePageContent(pageData.textContent, pageData.broadcastingInfo);
+      return this.parsePageContent(pageContent);
       
     } catch (error) {
       console.error('Error scraping GAA fixtures:', error);
@@ -78,14 +60,13 @@ export class GAAScraper {
     }
   }
 
-  private parsePageContent(content: string, broadcastingInfo: string[] = []): GAADayFixtures[] {
+  private parsePageContent(content: string): GAADayFixtures[] {
     const fixtures: GAADayFixtures[] = [];
     const lines = content.split('\n').map(line => line.trim()).filter(line => line.length > 0);
     
     let currentDay = '';
     let currentDate = '';
     let currentFixtures: GAAFixture[] = [];
-    let fixtureIndex = 0; // Track fixture index for broadcasting assignment
     let i = 0;
     while (i < lines.length) {
       const line = lines[i];
@@ -125,25 +106,17 @@ export class GAAScraper {
         }
         // Only add if both teams and time are found
         if (team1 && team2 && time) {
-          // Assign broadcasting info based on fixture index
-          let channel = 'GAA.ie'; // Default
-          if (broadcastingInfo[fixtureIndex]) {
-            channel = broadcastingInfo[fixtureIndex];
-          }
-          
           const id = `${currentDay}-${team1}-${team2}-${time.replace(':','')}`;
           currentFixtures.push({
             id,
             time,
             sport: 'GAA Football', // Could be improved with context
             match: `${team1} v ${team2}`,
-            channel,
+            channel: 'GAA.ie',
             date: `${currentDate} 2025`,
             venue,
             referee
           });
-          
-          fixtureIndex++; // Increment for next fixture
         }
         i = j;
         continue;
