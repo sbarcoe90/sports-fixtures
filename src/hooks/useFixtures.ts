@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
-import { GAADayFixtures } from '@/utils/gaaScraper';
+import type { DayFixtures } from '../types/sports';
 
 interface UseFixturesReturn {
-  fixtures: GAADayFixtures[];
+  fixtures: DayFixtures[];
   loading: boolean;
   error: string | null;
   refetch: () => void;
 }
 
 export function useFixtures(): UseFixturesReturn {
-  const [fixtures, setFixtures] = useState<GAADayFixtures[]>([]);
+  const [fixtures, setFixtures] = useState<DayFixtures[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,9 +23,9 @@ export function useFixtures(): UseFixturesReturn {
       
       if (data.success) {
         // Group fixtures by ISO date string
-        const groupedByDay = new Map<string, GAADayFixtures>();
+        const groupedByDay = new Map<string, DayFixtures>();
 
-        data.data.forEach((dayFixtures: GAADayFixtures) => {
+        data.data.forEach((dayFixtures: DayFixtures) => {
           const key = dayFixtures.date; // ISO string, e.g. "2025-07-05"
 
           if (groupedByDay.has(key)) {
