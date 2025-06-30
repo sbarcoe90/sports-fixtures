@@ -42,7 +42,7 @@ export default function Home() {
         {/* Header */}
         <header className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-800 mb-4">
-            GAA Weekend Fixtures
+            Sports Weekend Fixtures
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
             Your complete guide to this weekend&apos;s GAA matches from the official GAA website
