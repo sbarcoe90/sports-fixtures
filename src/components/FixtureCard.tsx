@@ -4,48 +4,34 @@ interface FixtureCardProps {
   fixture: Fixture;
 }
 
+function getSportBgClass(sport: string): string {
+  if (sport.toLowerCase().includes('f1')) return 'bg-blue-50 border-blue-200';
+  if (sport.toLowerCase().includes('gaa')) return 'bg-green-50 border-green-200';
+  return 'bg-gray-50 border-gray-200';
+}
+
+function getChannelBadgeClass(sport: string): string {
+  if (sport.toLowerCase().includes('f1')) return 'bg-blue-500 text-white';
+  if (sport.toLowerCase().includes('gaa')) return 'bg-green-500 text-white';
+  return 'bg-gray-500 text-white';
+}
+
 export default function FixtureCard({ fixture }: FixtureCardProps) {
   return (
-    <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 p-4 border border-gray-100">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center space-x-3">
-          <div className="text-sm font-semibold text-gray-600 bg-orange-100 px-2 py-1 rounded">
-            {fixture.time}
-          </div>
-          <div className="text-sm font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
-            {fixture.sport}
-          </div>
-        </div>
-        <div className={`text-xs px-2 py-1 rounded ${
-          fixture.channel === 'No TV Coverage' 
-            ? 'text-gray-400 bg-gray-100' 
-            : 'text-gray-500 bg-gray-50'
-        }`}>
-          {fixture.channel === 'No TV Coverage' ? 'No TV' : fixture.channel}
-        </div>
+    <div className={`rounded-lg shadow-sm border p-4 flex flex-col gap-2 ${getSportBgClass(fixture.sport)}`}>
+      <div className="flex items-center justify-between">
+        <span className="font-semibold text-lg text-gray-800">{fixture.match}</span>
+        <span className="text-sm text-gray-500">{fixture.time}</span>
       </div>
-      
-      <div className="mb-3">
-        <h3 className="text-lg font-semibold text-gray-800 mb-1">
-          {fixture.match}
-        </h3>
-        {fixture.competition && (
-          <p className="text-sm text-gray-600 italic">
-            {fixture.competition}
-          </p>
-        )}
+      <div className="flex items-center gap-2 text-sm text-gray-600">
+        <span>{fixture.venue}</span>
+        {fixture.competition && <span className="ml-2 italic">{fixture.competition}</span>}
       </div>
-      
-      {(fixture.venue) && (
-        <div className="text-xs text-gray-500 space-y-1">
-          {fixture.venue && (
-            <div className="flex items-center">
-              <span className="font-medium mr-1">Venue:</span>
-              <span>{fixture.venue}</span>
-            </div>
-          )}
-        </div>
-      )}
+      <div className="flex justify-end mt-2">
+        <span className={`px-3 py-1 rounded-full font-semibold text-xs shadow-sm ${getChannelBadgeClass(fixture.sport)}`}>
+          {fixture.channel}
+        </span>
+      </div>
     </div>
   );
 } 
