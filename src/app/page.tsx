@@ -98,7 +98,7 @@ export default function Home() {
             Sports Weekend Fixtures
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Your complete guide to this weekend&apos;s GAA matches from the official GAA website
+          The Only Guide You Need for Your Weekend of Sport
           </p>
           <div className="mt-4">
             <button
