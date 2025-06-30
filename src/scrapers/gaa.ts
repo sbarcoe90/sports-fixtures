@@ -1,13 +1,6 @@
 import { BaseScraper } from './base';
-import { ScraperResult, DayFixtures } from '../types/sports';
-
-// Use a try-catch for the import to handle cases where the file doesn't exist during build time
-let gaaFixtures: any[] = [];
-try {
-  gaaFixtures = require('../data/gaaFixtures').gaaFixtures;
-} catch (error) {
-  console.warn('Could not load local GAA fixtures. Please run the refresh script from the admin panel.');
-}
+import { ScraperResult, DayFixtures, Fixture } from '../types/sports';
+import { gaaFixtures } from '../data/gaaFixtures';
 
 export class GAAScraper extends BaseScraper {
   name = 'GAA';
@@ -24,9 +17,20 @@ export class GAAScraper extends BaseScraper {
          throw new Error('gaaFixtures data is missing or empty. Please run the refresh script from the admin panel.');
       }
       console.log(`Loading GAA fixtures from local data...`);
-      const fixtures = this.processFixtures(gaaFixtures);
-      console.log(`Found ${fixtures.reduce((sum, day) => sum + day.fixtures.length, 0)} GAA fixtures from local data.`);
-      return this.createScraperResult(this.name, fixtures, true);
+      // Map gaaFixtures to Fixture type
+      const fixtures: Fixture[] = gaaFixtures.map(f => ({
+        id: `${f.match}-${f.time}`.replace(/\s/g, ''),
+        time: f.time,
+        sport: f.sport,
+        match: f.match,
+        channel: f.tv_channel, // rename
+        date: f.date.split('T')[0],
+        venue: f.venue,
+        competition: f.competition
+      }));
+      const processed = this.processFixtures(fixtures);
+      console.log(`Found ${processed.reduce((sum, day) => sum + day.fixtures.length, 0)} GAA fixtures from local data.`);
+      return this.createScraperResult(this.name, processed, true);
     } catch (error) {
       const errorMessage = `Error loading GAA fixtures: ${error instanceof Error ? error.message : 'Unknown error'}`;
       console.error(errorMessage);
@@ -34,7 +38,7 @@ export class GAAScraper extends BaseScraper {
     }
   }
 
-  private processFixtures(fixtures: any[]): DayFixtures[] {
+  private processFixtures(fixtures: Fixture[]): DayFixtures[] {
     const fixturesByDay = new Map<string, DayFixtures>();
 
     fixtures
@@ -57,7 +61,7 @@ export class GAAScraper extends BaseScraper {
           time: fixture.time,
           sport: fixture.sport,
           match: fixture.match,
-          channel: fixture.tv_channel,
+          channel: fixture.channel,
           date: dayKey, // ISO string
           venue: fixture.venue,
           competition: fixture.competition

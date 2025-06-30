@@ -41,13 +41,21 @@ async function refreshGaaFixtures() {
     const fixturesData = await page.evaluate(() => {
       // NOTE: This function runs in the browser context.
       const allNodes = document.querySelectorAll('.gar-matches-list h3.gar-matches-list__group-name, .gar-matches-list .gar-match-item');
-      const fixtures: any[] = [];
+      const fixtures: Array<{
+        date: string;
+        time: string;
+        sport: string;
+        match: string;
+        venue: string | undefined;
+        competition: string;
+        tv_channel: string;
+      }> = [];
       let currentCompetition = 'GAA';
 
-      const mapChannelName = (raw: any): string => {
-        const map: any = { 'rtebbc': 'RTE / BBC Sport', 'rte': 'RTE', 'bbc': 'BBC Sport', 'tg4': 'TG4', 'sky sports': 'Sky Sports', 'gaa go': 'GAAGO' };
-        const key = (raw as string).trim().toLowerCase();
-        return map[key] || (raw as string).replace(/\b\w/g, (c: any) => (c as string).toUpperCase());
+      const mapChannelName = (raw: string): string => {
+        const map: Record<string, string> = { 'rtebbc': 'RTE / BBC Sport', 'rte': 'RTE', 'bbc': 'BBC Sport', 'tg4': 'TG4', 'sky sports': 'Sky Sports', 'gaa go': 'GAAGO' };
+        const key = raw.trim().toLowerCase();
+        return map[key] || raw.replace(/\b\w/g, (c: string) => c.toUpperCase());
       };
       
       allNodes.forEach(el => {
@@ -61,7 +69,7 @@ async function refreshGaaFixtures() {
           const matchDate = el.getAttribute('data-match-date');
           
           let channel = 'No TV Coverage';
-          const tvProviderImg = el.querySelector('.gar-match-item__tv-provider img') as HTMLImageElement;
+          const tvProviderImg = el.querySelector('.gar-match-item__tv-provider img') as HTMLImageElement | null;
           if (tvProviderImg && tvProviderImg.alt.includes('Broadcasting on')) {
             const rawChannel = tvProviderImg.alt.match(/Broadcasting on (.+)/)?.[1];
             if (rawChannel) channel = mapChannelName(rawChannel);
