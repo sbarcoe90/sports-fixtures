@@ -3,6 +3,7 @@
 import { useFixtures } from '@/hooks/useFixtures';
 import DaySection from '@/components/DaySection';
 import { useEffect, useState } from 'react';
+import type { Fixture } from '../types/sports';
 
 const SPORT_OPTIONS = [
   { id: 'gaa', label: 'GAA' },
@@ -55,7 +56,7 @@ export default function Home() {
   // Filter fixtures by enabled sports
   const filteredFixtures = fixtures.map(day => ({
     ...day,
-    fixtures: day.fixtures.filter(f => enabledSports[f.sport.toLowerCase().includes('gaa') ? 'gaa' : f.sport.toLowerCase()])
+    fixtures: day.fixtures.filter((f: Fixture) => enabledSports[f.sport.toLowerCase().includes('gaa') ? 'gaa' : f.sport.toLowerCase()])
   })).filter(day => day.fixtures.length > 0);
 
   if (loading) {
