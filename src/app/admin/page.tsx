@@ -123,6 +123,28 @@ export default function AdminPage() {
     }
   };
 
+  const refreshGaaFixtures = async () => {
+    setState(prev => ({ ...prev, isRefreshing: true }));
+    try {
+      const response = await fetch('/api/admin/refresh-gaa', {
+        method: 'POST'
+      });
+      const result = await response.json();
+      if (response.ok) {
+        alert(`Success: ${result.message}`);
+        // Optionally, refresh the main fixture list or update status
+        testAllScrapers();
+      } else {
+        throw new Error(result.message || 'Failed to refresh GAA fixtures.');
+      }
+    } catch (error) {
+      console.error('Failed to refresh GAA fixtures:', error);
+      alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setState(prev => ({ ...prev, isRefreshing: false }));
+    }
+  };
+
   const testAllScrapers = async () => {
     setState(prev => ({
       ...prev,
@@ -196,6 +218,15 @@ export default function AdminPage() {
                   </div>
                   
                   <div className="flex items-center space-x-4">
+                    {sportId === 'gaa' && (
+                      <button
+                        onClick={refreshGaaFixtures}
+                        disabled={state.isRefreshing}
+                        className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Refresh Data
+                      </button>
+                    )}
                     <button
                       onClick={() => testScraper(sportId)}
                       disabled={state.isRefreshing}

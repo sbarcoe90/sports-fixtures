@@ -1,6 +1,7 @@
 import { SportConfig } from '../types/sports';
 import { GAAScraper } from './gaa';
 import { SoccerScraper } from './soccer';
+import { F1Scraper } from './f1';
 
 // Registry of all available sports
 export const SPORTS_REGISTRY: Record<string, SportConfig> = {
@@ -19,13 +20,22 @@ export const SPORTS_REGISTRY: Record<string, SportConfig> = {
     priority: 2,
     seasonStart: '2025-08-01',
     seasonEnd: '2025-05-31'
+  },
+  f1: {
+    id: 'f1',
+    name: 'F1',
+    isEnabled: true,
+    priority: 3,
+    seasonStart: '2025-02-01',
+    seasonEnd: '2025-12-31'
   }
 };
 
 // Scraper instances
 export const SCRAPERS = {
   gaa: new GAAScraper(),
-  soccer: new SoccerScraper()
+  soccer: new SoccerScraper(),
+  f1: new F1Scraper()
 };
 
 // Helper functions
