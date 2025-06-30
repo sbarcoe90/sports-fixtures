@@ -2,9 +2,61 @@
 
 import { useFixtures } from '@/hooks/useFixtures';
 import DaySection from '@/components/DaySection';
+import { useEffect, useState } from 'react';
+
+const SPORT_OPTIONS = [
+  { id: 'gaa', label: 'GAA' },
+  { id: 'f1', label: 'F1' },
+  // Add more sports as needed
+];
+
+function getInitialSportPrefs() {
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('enabledSports');
+    if (stored) return JSON.parse(stored);
+  }
+  // Default: all enabled
+  return SPORT_OPTIONS.reduce((acc, s) => { acc[s.id] = true; return acc; }, {} as Record<string, boolean>);
+}
+
+function SportToggleBar({ enabledSports, setEnabledSports }: {
+  enabledSports: Record<string, boolean>,
+  setEnabledSports: (prefs: Record<string, boolean>) => void
+}) {
+  return (
+    <div className="flex gap-4 justify-center mb-8">
+      {SPORT_OPTIONS.map(sport => (
+        <label key={sport.id} className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={enabledSports[sport.id]}
+            onChange={() => {
+              const updated = { ...enabledSports, [sport.id]: !enabledSports[sport.id] };
+              setEnabledSports(updated);
+              localStorage.setItem('enabledSports', JSON.stringify(updated));
+            }}
+          />
+          <span className="font-medium text-gray-700">{sport.label}</span>
+        </label>
+      ))}
+    </div>
+  );
+}
 
 export default function Home() {
   const { fixtures, loading, error, refetch } = useFixtures();
+  const [enabledSports, setEnabledSports] = useState<Record<string, boolean>>(getInitialSportPrefs());
+
+  useEffect(() => {
+    // Sync with localStorage on mount
+    setEnabledSports(getInitialSportPrefs());
+  }, []);
+
+  // Filter fixtures by enabled sports
+  const filteredFixtures = fixtures.map(day => ({
+    ...day,
+    fixtures: day.fixtures.filter(f => enabledSports[f.sport.toLowerCase().includes('gaa') ? 'gaa' : f.sport.toLowerCase()])
+  })).filter(day => day.fixtures.length > 0);
 
   if (loading) {
     return (
@@ -57,10 +109,13 @@ export default function Home() {
           </div>
         </header>
 
+        {/* Sport toggles */}
+        <SportToggleBar enabledSports={enabledSports} setEnabledSports={setEnabledSports} />
+
         {/* Fixtures Sections */}
         <main className="max-w-6xl mx-auto">
-          {fixtures.length > 0 ? (
-            fixtures.map((dayFixtures) => (
+          {filteredFixtures.length > 0 ? (
+            filteredFixtures.map((dayFixtures) => (
               <DaySection key={`${dayFixtures.day}-${dayFixtures.date}`} dayFixtures={dayFixtures} />
             ))
           ) : (

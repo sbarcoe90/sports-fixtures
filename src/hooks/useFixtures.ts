@@ -45,9 +45,12 @@ export function useFixtures(): UseFixturesReturn {
         // Sort fixtures within each day by time (earliest to latest)
         mergedFixtures.forEach(day => {
           day.fixtures.sort((a, b) => {
-            const [hA, mA] = a.time.split(':').map(Number);
-            const [hB, mB] = b.time.split(':').map(Number);
-            return hA * 60 + mA - (hB * 60 + mB);
+            // Robust time parsing: trim and pad
+            const parseTime = (t: string) => {
+              const [h, m] = t.trim().split(':').map(Number);
+              return h * 60 + m;
+            };
+            return parseTime(a.time) - parseTime(b.time);
           });
         });
 
