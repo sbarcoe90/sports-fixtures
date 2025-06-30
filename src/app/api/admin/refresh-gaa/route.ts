@@ -33,7 +33,7 @@ async function refreshGaaFixtures() {
         await page.waitForSelector('.gar-matches-list__btn.btn-secondary.-next', { timeout: 5000 });
         await page.click('.gar-matches-list__btn.btn-secondary.-next');
         await page.waitForNetworkIdle({ timeout: 5000 });
-      } catch (e) {
+      } catch {
         console.log('No "More results" button found, continuing.');
       }
     }
